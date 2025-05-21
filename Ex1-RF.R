@@ -1,7 +1,8 @@
 rm(list=ls());gc()
-setwd("D:/PostDoc work/code/Main code/LLOX/After-Pak-visit/Cleaned Code")
-source("Functions.R")
+#setwd("D:/PostDoc work/code/Main code/LLOX/After-Pak-visit/Cleaned Code")
+setwd("~/Documents/Touqeer-Docs/Partition D/PostDoc work/code/Main code/LLOX/After-Pak-visit/Cleaned Code/GitHub-code")
 
+source("Functions.R")
 
 set.seed(123)
 ##Test set----------------------------------------------
@@ -34,9 +35,9 @@ init_matrices <- function(R, cols, colnames_list) {
   mats
 }
 # Column names for AM metrics matrices
-AM_colnames <- c("SMOTE(S)", "SMOTE(L)", "KDE(L)", "KDE(S)")
+AM_colnames <- c("BBC", "SMOTE(S)", "SMOTE(L)", "KDE(L)", "KDE(S)")  
 #AM risk
-AM_risk_rf <- init_matrices(R, 4, AM_colnames)
+AM_risk_rf <- init_matrices(R, 5, AM_colnames)
 
 ##Test set----------------
 
@@ -122,21 +123,27 @@ for (r in 1:R) {
     train_data$y <- as.factor(train_data$y)
     
     # Leave test data unbalanced (realistic evaluation)
-    
+    p_hat= mean(train_data$y==1)
+    class_weights <- c('0' = p_hat, '1' = 1 - p_hat)
     # Train Random Forests
+    rf_bbc<- rf_smote <- randomForest(y ~ ., data = train_data)
     rf_smote     <- randomForest(y ~ ., data = train_data_smote)
     rf_smote1    <- randomForest(y ~ ., data = train_data_smote1)
     rf_kde       <- randomForest(y ~ ., data = train_data_kde)
     rf_kde1      <- randomForest(y ~ ., data = train_data_kde1)
     
     # Predict
+    rf_bbc_prob<- predict(rf_bbc,  test_data_balanced[,-ncol(test_data_balanced)], type = "prob")[, 2] 
+    rf_bbc_pred <- ifelse(rf_bbc_prob >= p_hat, 1, 0)
+    rf_bbc_pred <- as.factor(rf_bbc_pred)
     rf_smote_pred  <- predict(rf_smote,  test_data_balanced[,-ncol(test_data_balanced)])
     rf_smote1_pred <- predict(rf_smote1, test_data_balanced[,-ncol(test_data_balanced)])
     rf_kde_pred    <- predict(rf_kde,    test_data_balanced[,-ncol(test_data_balanced)])
     rf_kde1_pred   <- predict(rf_kde1,   test_data_balanced[,-ncol(test_data_balanced)])
-  
-  #balanced rf with AM risk------------------------------------------------------------------------------
+    
+    #balanced rf with AM risk------------------------------------------------------------------------------
     # Confusion Matrices
+    conf_rf_bbc     <- confusionMatrix(rf_bbc_pred,     as.factor(test_data_balanced$y), mode = "everything")
     conf_rf_smote     <- confusionMatrix(rf_smote_pred,     as.factor(test_data_balanced$y), mode = "everything")
     conf_rf_smote1    <- confusionMatrix(rf_smote1_pred,    as.factor(test_data_balanced$y), mode = "everything")
     conf_rf_kde       <- confusionMatrix(rf_kde_pred,       as.factor(test_data_balanced$y), mode = "everything")
@@ -144,15 +151,14 @@ for (r in 1:R) {
     
     # Extract (1 - Balanced Accuracy)
     AM_rf<- c(
+      1 - conf_rf_bbc$byClass["Balanced Accuracy"],
       1 - conf_rf_smote$byClass["Balanced Accuracy"],
       1 - conf_rf_smote1$byClass["Balanced Accuracy"],
       1 - conf_rf_kde$byClass["Balanced Accuracy"],
       1 - conf_rf_kde1$byClass["Balanced Accuracy"]
     )
     
-    names(AM_rf) <- c("SMOTE(S)", "SMOTE(L)", "KDE(L)", "KDE(S)")
-  #print(AM_rf)
-
+    names(AM_rf) <- c("BBC", "SMOTE(S)", "SMOTE(L)", "KDE(L)", "KDE(S)")
   
   # Save risk in the appropriate matrix
   AM_risk_rf$alpha_01[r, ] <- AM_rf
@@ -244,14 +250,19 @@ for (r in 1:R) {
   train_data$y <- as.factor(train_data$y)
   
   # Leave test data unbalanced (realistic evaluation)
-  
+  p_hat= mean(train_data$y==1)
+  class_weights <- c('0' = p_hat, '1' = 1 - p_hat)
   # Train Random Forests
+  rf_bbc<- rf_smote <- randomForest(y ~ ., data = train_data)
   rf_smote     <- randomForest(y ~ ., data = train_data_smote)
   rf_smote1    <- randomForest(y ~ ., data = train_data_smote1)
   rf_kde       <- randomForest(y ~ ., data = train_data_kde)
   rf_kde1      <- randomForest(y ~ ., data = train_data_kde1)
   
   # Predict
+  rf_bbc_prob<- predict(rf_bbc,  test_data_balanced[,-ncol(test_data_balanced)], type = "prob")[, 2] 
+  rf_bbc_pred <- ifelse(rf_bbc_prob >= p_hat, 1, 0)
+  rf_bbc_pred <- as.factor(rf_bbc_pred)
   rf_smote_pred  <- predict(rf_smote,  test_data_balanced[,-ncol(test_data_balanced)])
   rf_smote1_pred <- predict(rf_smote1, test_data_balanced[,-ncol(test_data_balanced)])
   rf_kde_pred    <- predict(rf_kde,    test_data_balanced[,-ncol(test_data_balanced)])
@@ -259,6 +270,7 @@ for (r in 1:R) {
   
   #balanced rf with AM risk------------------------------------------------------------------------------
   # Confusion Matrices
+  conf_rf_bbc     <- confusionMatrix(rf_bbc_pred,     as.factor(test_data_balanced$y), mode = "everything")
   conf_rf_smote     <- confusionMatrix(rf_smote_pred,     as.factor(test_data_balanced$y), mode = "everything")
   conf_rf_smote1    <- confusionMatrix(rf_smote1_pred,    as.factor(test_data_balanced$y), mode = "everything")
   conf_rf_kde       <- confusionMatrix(rf_kde_pred,       as.factor(test_data_balanced$y), mode = "everything")
@@ -266,15 +278,14 @@ for (r in 1:R) {
   
   # Extract (1 - Balanced Accuracy)
   AM_rf<- c(
+    1 - conf_rf_bbc$byClass["Balanced Accuracy"],
     1 - conf_rf_smote$byClass["Balanced Accuracy"],
     1 - conf_rf_smote1$byClass["Balanced Accuracy"],
     1 - conf_rf_kde$byClass["Balanced Accuracy"],
     1 - conf_rf_kde1$byClass["Balanced Accuracy"]
   )
   
-  names(AM_rf) <- c("SMOTE(S)", "SMOTE(L)", "KDE(L)", "KDE(S)")
-  #print(AM_rf)
-  
+  names(AM_rf) <- c("BBC", "SMOTE(S)", "SMOTE(L)", "KDE(L)", "KDE(S)")  
   
   # Save risk in the appropriate matrix
   AM_risk_rf$alpha_02[r, ] <- AM_rf
@@ -367,14 +378,19 @@ for (r in 1:R) {
   train_data$y <- as.factor(train_data$y)
   
   # Leave test data unbalanced (realistic evaluation)
-  
+  p_hat= mean(train_data$y==1)
+  class_weights <- c('0' = p_hat, '1' = 1 - p_hat)
   # Train Random Forests
+  rf_bbc<- rf_smote <- randomForest(y ~ ., data = train_data)
   rf_smote     <- randomForest(y ~ ., data = train_data_smote)
   rf_smote1    <- randomForest(y ~ ., data = train_data_smote1)
   rf_kde       <- randomForest(y ~ ., data = train_data_kde)
   rf_kde1      <- randomForest(y ~ ., data = train_data_kde1)
   
   # Predict
+  rf_bbc_prob<- predict(rf_bbc,  test_data_balanced[,-ncol(test_data_balanced)], type = "prob")[, 2] 
+  rf_bbc_pred <- ifelse(rf_bbc_prob >= p_hat, 1, 0)
+  rf_bbc_pred <- as.factor(rf_bbc_pred)
   rf_smote_pred  <- predict(rf_smote,  test_data_balanced[,-ncol(test_data_balanced)])
   rf_smote1_pred <- predict(rf_smote1, test_data_balanced[,-ncol(test_data_balanced)])
   rf_kde_pred    <- predict(rf_kde,    test_data_balanced[,-ncol(test_data_balanced)])
@@ -382,6 +398,7 @@ for (r in 1:R) {
   
   #balanced rf with AM risk------------------------------------------------------------------------------
   # Confusion Matrices
+  conf_rf_bbc     <- confusionMatrix(rf_bbc_pred,     as.factor(test_data_balanced$y), mode = "everything")
   conf_rf_smote     <- confusionMatrix(rf_smote_pred,     as.factor(test_data_balanced$y), mode = "everything")
   conf_rf_smote1    <- confusionMatrix(rf_smote1_pred,    as.factor(test_data_balanced$y), mode = "everything")
   conf_rf_kde       <- confusionMatrix(rf_kde_pred,       as.factor(test_data_balanced$y), mode = "everything")
@@ -389,15 +406,14 @@ for (r in 1:R) {
   
   # Extract (1 - Balanced Accuracy)
   AM_rf<- c(
+    1 - conf_rf_bbc$byClass["Balanced Accuracy"],
     1 - conf_rf_smote$byClass["Balanced Accuracy"],
     1 - conf_rf_smote1$byClass["Balanced Accuracy"],
     1 - conf_rf_kde$byClass["Balanced Accuracy"],
     1 - conf_rf_kde1$byClass["Balanced Accuracy"]
   )
   
-  names(AM_rf) <- c("SMOTE(S)", "SMOTE(L)", "KDE(L)", "KDE(S)")
-  #print(AM_rf)
-  
+  names(AM_rf) <- c("BBC", "SMOTE(S)", "SMOTE(L)", "KDE(L)", "KDE(S)")
   
   # Save risk in the appropriate matrix
   AM_risk_rf$alpha_03[r, ] <- AM_rf
@@ -487,14 +503,19 @@ for (r in 1:R) {
   train_data$y <- as.factor(train_data$y)
   
   # Leave test data unbalanced (realistic evaluation)
-  
+  p_hat= mean(train_data$y==1)
+  class_weights <- c('0' = p_hat, '1' = 1 - p_hat)
   # Train Random Forests
+  rf_bbc<- rf_smote <- randomForest(y ~ ., data = train_data)
   rf_smote     <- randomForest(y ~ ., data = train_data_smote)
   rf_smote1    <- randomForest(y ~ ., data = train_data_smote1)
   rf_kde       <- randomForest(y ~ ., data = train_data_kde)
   rf_kde1      <- randomForest(y ~ ., data = train_data_kde1)
   
   # Predict
+  rf_bbc_prob<- predict(rf_bbc,  test_data_balanced[,-ncol(test_data_balanced)], type = "prob")[, 2] 
+  rf_bbc_pred <- ifelse(rf_bbc_prob >= p_hat, 1, 0)
+  rf_bbc_pred <- as.factor(rf_bbc_pred)
   rf_smote_pred  <- predict(rf_smote,  test_data_balanced[,-ncol(test_data_balanced)])
   rf_smote1_pred <- predict(rf_smote1, test_data_balanced[,-ncol(test_data_balanced)])
   rf_kde_pred    <- predict(rf_kde,    test_data_balanced[,-ncol(test_data_balanced)])
@@ -502,6 +523,7 @@ for (r in 1:R) {
   
   #balanced rf with AM risk------------------------------------------------------------------------------
   # Confusion Matrices
+  conf_rf_bbc     <- confusionMatrix(rf_bbc_pred,     as.factor(test_data_balanced$y), mode = "everything")
   conf_rf_smote     <- confusionMatrix(rf_smote_pred,     as.factor(test_data_balanced$y), mode = "everything")
   conf_rf_smote1    <- confusionMatrix(rf_smote1_pred,    as.factor(test_data_balanced$y), mode = "everything")
   conf_rf_kde       <- confusionMatrix(rf_kde_pred,       as.factor(test_data_balanced$y), mode = "everything")
@@ -509,15 +531,14 @@ for (r in 1:R) {
   
   # Extract (1 - Balanced Accuracy)
   AM_rf<- c(
+    1 - conf_rf_bbc$byClass["Balanced Accuracy"],
     1 - conf_rf_smote$byClass["Balanced Accuracy"],
     1 - conf_rf_smote1$byClass["Balanced Accuracy"],
     1 - conf_rf_kde$byClass["Balanced Accuracy"],
     1 - conf_rf_kde1$byClass["Balanced Accuracy"]
   )
   
-  names(AM_rf) <- c("SMOTE(S)", "SMOTE(L)", "KDE(L)", "KDE(S)")
-  #print(AM_rf)
-  
+  names(AM_rf) <- c("BBC", "SMOTE(S)", "SMOTE(L)", "KDE(L)", "KDE(S)")  
   
   # Save risk in the appropriate matrix
   AM_risk_rf$alpha_04[r, ] <- AM_rf
@@ -607,14 +628,19 @@ for (r in 1:R) {
   train_data$y <- as.factor(train_data$y)
   
   # Leave test data unbalanced (realistic evaluation)
-  
+  p_hat= mean(train_data$y==1)
+  class_weights <- c('0' = p_hat, '1' = 1 - p_hat)
   # Train Random Forests
+  rf_bbc<- rf_smote <- randomForest(y ~ ., data = train_data)
   rf_smote     <- randomForest(y ~ ., data = train_data_smote)
   rf_smote1    <- randomForest(y ~ ., data = train_data_smote1)
   rf_kde       <- randomForest(y ~ ., data = train_data_kde)
   rf_kde1      <- randomForest(y ~ ., data = train_data_kde1)
   
   # Predict
+  rf_bbc_prob<- predict(rf_bbc,  test_data_balanced[,-ncol(test_data_balanced)], type = "prob")[, 2] 
+  rf_bbc_pred <- ifelse(rf_bbc_prob >= p_hat, 1, 0)
+  rf_bbc_pred <- as.factor(rf_bbc_pred)
   rf_smote_pred  <- predict(rf_smote,  test_data_balanced[,-ncol(test_data_balanced)])
   rf_smote1_pred <- predict(rf_smote1, test_data_balanced[,-ncol(test_data_balanced)])
   rf_kde_pred    <- predict(rf_kde,    test_data_balanced[,-ncol(test_data_balanced)])
@@ -622,6 +648,7 @@ for (r in 1:R) {
   
   #balanced rf with AM risk------------------------------------------------------------------------------
   # Confusion Matrices
+  conf_rf_bbc     <- confusionMatrix(rf_bbc_pred,     as.factor(test_data_balanced$y), mode = "everything")
   conf_rf_smote     <- confusionMatrix(rf_smote_pred,     as.factor(test_data_balanced$y), mode = "everything")
   conf_rf_smote1    <- confusionMatrix(rf_smote1_pred,    as.factor(test_data_balanced$y), mode = "everything")
   conf_rf_kde       <- confusionMatrix(rf_kde_pred,       as.factor(test_data_balanced$y), mode = "everything")
@@ -629,15 +656,14 @@ for (r in 1:R) {
   
   # Extract (1 - Balanced Accuracy)
   AM_rf<- c(
+    1 - conf_rf_bbc$byClass["Balanced Accuracy"],
     1 - conf_rf_smote$byClass["Balanced Accuracy"],
     1 - conf_rf_smote1$byClass["Balanced Accuracy"],
     1 - conf_rf_kde$byClass["Balanced Accuracy"],
     1 - conf_rf_kde1$byClass["Balanced Accuracy"]
   )
   
-  names(AM_rf) <- c("SMOTE(S)", "SMOTE(L)", "KDE(L)", "KDE(S)")
-  #print(AM_rf)
-  
+  names(AM_rf) <- c("BBC", "SMOTE(S)", "SMOTE(L)", "KDE(L)", "KDE(S)")
   
   # Save risk in the appropriate matrix
   AM_risk_rf$alpha_05[r, ] <- AM_rf
@@ -729,14 +755,19 @@ for (r in 1:R) {
   train_data$y <- as.factor(train_data$y)
   
   # Leave test data unbalanced (realistic evaluation)
-  
+  p_hat= mean(train_data$y==1)
+  class_weights <- c('0' = p_hat, '1' = 1 - p_hat)
   # Train Random Forests
+  rf_bbc<- rf_smote <- randomForest(y ~ ., data = train_data)
   rf_smote     <- randomForest(y ~ ., data = train_data_smote)
   rf_smote1    <- randomForest(y ~ ., data = train_data_smote1)
   rf_kde       <- randomForest(y ~ ., data = train_data_kde)
   rf_kde1      <- randomForest(y ~ ., data = train_data_kde1)
   
   # Predict
+  rf_bbc_prob<- predict(rf_bbc,  test_data_balanced[,-ncol(test_data_balanced)], type = "prob")[, 2] 
+  rf_bbc_pred <- ifelse(rf_bbc_prob >= p_hat, 1, 0)
+  rf_bbc_pred <- as.factor(rf_bbc_pred)
   rf_smote_pred  <- predict(rf_smote,  test_data_balanced[,-ncol(test_data_balanced)])
   rf_smote1_pred <- predict(rf_smote1, test_data_balanced[,-ncol(test_data_balanced)])
   rf_kde_pred    <- predict(rf_kde,    test_data_balanced[,-ncol(test_data_balanced)])
@@ -744,6 +775,7 @@ for (r in 1:R) {
   
   #balanced rf with AM risk------------------------------------------------------------------------------
   # Confusion Matrices
+  conf_rf_bbc     <- confusionMatrix(rf_bbc_pred,     as.factor(test_data_balanced$y), mode = "everything")
   conf_rf_smote     <- confusionMatrix(rf_smote_pred,     as.factor(test_data_balanced$y), mode = "everything")
   conf_rf_smote1    <- confusionMatrix(rf_smote1_pred,    as.factor(test_data_balanced$y), mode = "everything")
   conf_rf_kde       <- confusionMatrix(rf_kde_pred,       as.factor(test_data_balanced$y), mode = "everything")
@@ -751,14 +783,14 @@ for (r in 1:R) {
   
   # Extract (1 - Balanced Accuracy)
   AM_rf<- c(
+    1 - conf_rf_bbc$byClass["Balanced Accuracy"],
     1 - conf_rf_smote$byClass["Balanced Accuracy"],
     1 - conf_rf_smote1$byClass["Balanced Accuracy"],
     1 - conf_rf_kde$byClass["Balanced Accuracy"],
     1 - conf_rf_kde1$byClass["Balanced Accuracy"]
   )
   
-  names(AM_rf) <- c("SMOTE(S)", "SMOTE(L)", "KDE(L)", "KDE(S)")
-  #print(AM_rf)
+  names(AM_rf) <- c("BBC", "SMOTE(S)", "SMOTE(L)", "KDE(L)", "KDE(S)")
   
   
   # Save risk in the appropriate matrix
@@ -788,11 +820,11 @@ library(ggplot2)
 
 # Define the methods and labels
 methods <- c("-1","-1.5","-2", "-2.5", "-3", "-3.5")
-labels <-  c("SMOTE(S)", "SMOTE(L)", "KDE(L)", "KDE(S)")
+labels <-  c("BBC", "SMOTE(S)", "SMOTE(L)", "KDE(L)", "KDE(S)")
 
 ##AM_risk_standard_rf_with_imbalanced_test----------
 
-dfs <- lapply(1:4, function(i) {
+dfs <- lapply(1:5, function(i) {
   data.frame(
     d = rep(labels[i], 6),
     method = methods,
@@ -828,7 +860,7 @@ AM_risk_rf$d <- factor(
 AM_risk_rf$t <-  "Example 1"
 # Assign shapes (e.g., cross = 4, dot = 16, triangle = 17, etc.)
 manual_shapes <- c(
-  #"BBC" = 4,        # cross
+  "BBC" = 4,        # cross
   #"BBC-CV" = 16,    # dot
   "SMOTE(S)" = 16,      # cross
   "SMOTE(L)" = 4,     # dot
@@ -842,7 +874,7 @@ manual_shapes <- c(
 
 # Define custom colors (same for related methods)
 manual_colors <- c(
-  #"BBC" = "#1b9e77",       # greenish
+  "BBC" = "#1b9e77",       # greenish
   #"BBC-CV" = "#1b9e77",    
   "SMOTE(S)" = "#d95f02",     # orange
   "SMOTE(L)" = "#d95f02",     
@@ -859,7 +891,7 @@ manual_colors <- c(
 p <- ggplot(AM_risk_rf, aes(x = method, y = x, group = d, color = d, shape = d)) +
   geom_point(position = position_dodge(width = 0.1), size = 2) +
   geom_line(position = position_dodge(width = 0.1), size = 0.5) +
-  labs(x = "Quantiles", y = "AM Risk", title = "") +
+  labs(x = "Alpha", y = "AM Risk", title = "") +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
     legend.position = "top",
